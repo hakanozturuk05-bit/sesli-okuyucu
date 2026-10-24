@@ -1,0 +1,53 @@
+name: APK derle
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  derle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Android proje iskeletini oluştur
+        run: flutter create --platforms=android --project-name sesli_okuyucu --org com.sesliokuyucu uygulama
+
+      - name: Kodlarımızı kopyala
+        run: |
+          cp -r lib uygulama/
+          cp pubspec.yaml uygulama/pubspec.yaml
+
+      - name: minSdk değerini 23 yap
+        working-directory: uygulama
+        run: |
+          for f in android/app/build.gradle.kts android/app/build.gradle; do
+            if [ -f "$f" ]; then
+              sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/' "$f"
+              sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/' "$f"
+            fi
+          done
+
+      - name: Paketleri indir
+        working-directory: uygulama
+        run: flutter pub get
+
+      - name: APK derle
+        working-directory: uygulama
+        run: flutter build apk --release
+
+      - name: APK dosyasını yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: sesli-okuyucu-apk
+          path: uygulama/build/app/outputs/flutter-apk/app-release.apk
